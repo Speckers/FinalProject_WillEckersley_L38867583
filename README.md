@@ -42,4 +42,13 @@ PHP-Python Integration: Fix the integration issue
 Installation:
 1: Clone repository: gh repo clone Speckers/FinalProject_WillEckersley_L38867583
 
-2. Set up XAMPP and a MySQL database and download the dataset from o
+2. Set up XAMPP and a MySQL database and import the csv file found in htdocs\ playerssquadtool\ ml\ 2022-2023stats2(in).csv into the database
+
+3. Install Python dependencies using pip. Libraries and dependencies used can be found in machine.py
+
+4. Run the machine.py script through the terminal, not the website, as generate_squad.php will not output correctly. Input into the terminal: python machine.py 4-3-3 Goals (you can replace 4-3-3 with your desired formation and Goals with whatever metric you want to use; ensure that the metric is spelt correctly, as it is case-sensitive and uses the same column names from the database).
+
+Contributing
+Contributions to the project are welcome! Feel free to fork the repository, make changes, and submit a pull request. Please ensure that your code adheres to the existing style and includes appropriate documentation.
+License
+This project is open-source and available under the MIT License.
