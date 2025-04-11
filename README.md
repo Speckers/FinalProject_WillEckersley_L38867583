@@ -40,4 +40,6 @@ UI Improvements: Add interactive features like drag-and-drop squad selection, im
 PHP-Python Integration: Fix the integration issue
 
 Installation:
-1: Clone repository: 
+1: Clone repository: gh repo clone Speckers/FinalProject_WillEckersley_L38867583
+
+2. Set up XAMPP and a MySQL database and download the dataset from o
