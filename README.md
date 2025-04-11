@@ -42,7 +42,7 @@ PHP-Python Integration: Fix the integration issue
 Installation:
 1: Clone repository: gh repo clone Speckers/FinalProject_WillEckersley_L38867583
 
-2. Set up XAMPP and a MySQL database and import the csv file found in htdocs\ playerssquadtool\ ml\ 2022-2023stats2(in).csv into the database
+2. Set up XAMPP and a MySQL database place the files into the htdocs folder in the XAMPP folder and  then import the csv file found in playerssquadtool\ ml\ 2022-2023stats2(in).csv into the database
 
 3. Install Python dependencies using pip. Libraries and dependencies used can be found in machine.py
 
