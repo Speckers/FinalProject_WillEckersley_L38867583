@@ -1,0 +1,1861 @@
+import sys
+import json
+import mysql.connector
+from decimal import Decimal
+
+
+criteria = sys.argv[1] if len(sys.argv) > 1 else 'goals'
+formation = sys.argv[2] if len(sys.argv) > 2 else '4-3-3'
+
+
+formations = {
+    "4-3-3": {"GK": 1, "DEF": 4, "MID": 3, "FWD": 3},
+    "4-4-2": {"GK": 1, "DEF": 4, "MID": 4, "FWD": 2},
+    "3-5-2": {"GK": 1, "DEF": 3, "MID": 5, "FWD": 2},
+    "4-2-3-1": {"GK": 1, "DEF": 4, "MID": 5, "FWD": 1},
+}
+
+
+db = mysql.connector.connect(
+    host="localhost",
+    user="root",
+    password="",  
+    database="players"  
+)
+
+cursor = db.cursor(dictionary=True) 
+positions = formations.get(formation, formations["4-3-3"])
+squad = []
+
+
+for pos, count in positions.items():
+    query = f"SELECT * FROM `2022_2023stats2_in___1_` WHERE Pos = %s ORDER BY `{criteria}` DESC LIMIT %s"
+
+    print(f"Query for {pos}: {query}")  
+
+    cursor.execute(query, (pos, count))
+    players = cursor.fetchall()
+
+    if players:
+        squad.extend(players)
+    else:
+        print(f"No players found for position: {pos}")
+
+
+def convert_decimals(obj):
+    if isinstance(obj, list):
+        return [convert_decimals(item) for item in obj]
+    elif isinstance(obj, dict):
+        return {key: convert_decimals(value) for key, value in obj.items()}
+    elif isinstance(obj, Decimal):
+        return float(obj)
+    return obj
+
+
+squad = convert_decimals(squad)
+
+print(json.dumps(squad))
+
+
+cursor.close()
+db.close()
+
+<?php
+
+$criteria = $_POST['criteria'] ?? 'goals';
+$formation = $_POST['formation'] ?? '4-3-3';
+
+
+$criteria = escapeshellarg($criteria);
+$formation = escapeshellarg($formation);
+
+
+$command = "python model.py $criteria $formation";
+$output = shell_exec($command);
+
+
+
+
+$squad = json_decode($output, true);
+?>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Your Starting 11</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-800 text-white min-h-screen p-6">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold mb-4"> Your Starting 11 (<?= htmlspecialchars($formation) ?>)</h1>
+
+        <?php if ($squad && is_array($squad)): ?>
+           <style>
+    .pitch {
+        display: grid;
+        grid-template-rows: repeat(6, 1fr);
+        grid-template-columns: repeat(5, 1fr);
+        gap: 10px;
+        background: linear-gradient(#065f46, #064e3b);
+        border: 4px solid #10b981;
+        padding: 20px;
+        border-radius: 1rem;
+        aspect-ratio: 2 / 3;
+    }
+    .player {
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid #34d399;
+        border-radius: 10px;
+        text-align: center;
+        padding: 0.5rem;
+        font-size: 0.875rem;
+    }
+</style>
+
+<div class="pitch mx-auto max-w-xl mt-8">
+    <?php
+   
+    $grouped = ['GK' => [], 'DEF' => [], 'MID' => [], 'FWD' => []];
+    foreach ($squad as $p) {
+        $grouped[$p['position']][] = $p;
+    }
+
+    
+    function renderRow($players) {
+        $columns = count($players);
+        $startCol = floor((5 - $columns) / 2) + 1;
+        foreach ($players as $index => $p) {
+            $col = $startCol + $index;
+            echo "<div class='player col-start-$col row-auto'>
+                    <strong>{$p['name']}</strong><br>
+                    <span class='text-sm text-gray-300'>{$p['position']}</span>
+                  </div>";
+        }
+    }
+
+    
+    echo "<div class='row-start-1 col-span-5 flex justify-center'>";
+    renderRow($grouped['FWD']);
+    echo "</div>";
+
+    echo "<div class='row-start-3 col-span-5 flex justify-center'>";
+    renderRow($grouped['MID']);
+    echo "</div>";
+
+    echo "<div class='row-start-5 col-span-5 flex justify-center'>";
+    renderRow($grouped['DEF']);
+    echo "</div>";
+
+    echo "<div class='row-start-6 col-span-5 flex justify-center'>";
+    renderRow($grouped['GK']);
+    echo "</div>";
+    ?>
+</div>
+        <?php else: ?>
+            <p class="text-red-500">No players found or error running model.</p>
+        <?php endif; ?>
+
+        <div class="mt-8">
+            <a href="select_criteria.php" class="text-blue-400 hover:underline">← Try a different setup</a>
+        </div>
+    </div>
+</body>
+</html>
+
+<?php
+
+$criteria = $_POST['criteria'] ?? 'goals';
+$formation = $_POST['formation'] ?? '4-3-3';
+
+
+$criteria = escapeshellarg($criteria);
+$formation = escapeshellarg($formation);
+
+
+$command = "python model.py $criteria $formation";
+$output = shell_exec($command);
+
+
+echo "<pre>";
+echo "Command: $command\n";
+print_r($output);  
+echo "</pre>";
+
+
+$squad = json_decode($output, true);
+
+
+if ($squad === null) {
+    echo "<p>Error decoding JSON: " . json_last_error_msg() . "</p>";
+}
+?>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Your Starting 11</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-800 text-white min-h-screen p-6">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold mb-4"> Your Starting 11 (<?= htmlspecialchars($formation) ?>)</h1>
+
+        <?php if ($squad && is_array($squad)): ?>
+            <style>
+                .pitch {
+                    display: grid;
+                    grid-template-rows: repeat(6, 1fr);
+                    grid-template-columns: repeat(5, 1fr);
+                    gap: 10px;
+                    background: linear-gradient(#065f46, #064e3b);
+                    border: 4px solid #10b981;
+                    padding: 20px;
+                    border-radius: 1rem;
+                    aspect-ratio: 2 / 3;
+                }
+                .player {
+                    background: rgba(255, 255, 255, 0.1);
+                    border: 1px solid #34d399;
+                    border-radius: 10px;
+                    text-align: center;
+                    padding: 0.5rem;
+                    font-size: 0.875rem;
+                }
+            </style>
+
+            <div class="pitch mx-auto max-w-xl mt-8">
+                <?php
+                
+                $grouped = ['GK' => [], 'DEF' => [], 'MID' => [], 'FWD' => []];
+                foreach ($squad as $p) {
+                    $grouped[$p['position']][] = $p;
+                }
+
+                
+                function renderRow($players) {
+                    $columns = count($players);
+                    $startCol = floor((5 - $columns) / 2) + 1;
+                    foreach ($players as $index => $p) {
+                        $col = $startCol + $index;
+                        echo "<div class='player col-start-$col row-auto'>
+                                <strong>{$p['name']}</strong><br>
+                                <span class='text-sm text-gray-300'>{$p['position']}</span>
+                              </div>";
+                    }
+                }
+
+                
+                echo "<div class='row-start-1 col-span-5 flex justify-center'>";
+                renderRow($grouped['FWD']);
+                echo "</div>";
+
+                echo "<div class='row-start-3 col-span-5 flex justify-center'>";
+                renderRow($grouped['MID']);
+                echo "</div>";
+
+                echo "<div class='row-start-5 col-span-5 flex justify-center'>";
+                renderRow($grouped['DEF']);
+                echo "</div>";
+
+                echo "<div class='row-start-6 col-span-5 flex justify-center'>";
+                renderRow($grouped['GK']);
+                echo "</div>";
+                ?>
+            </div>
+        <?php else: ?>
+            <p class="text-red-500">No players found or error running model.</p>
+        <?php endif; ?>
+
+        <div class="mt-8">
+            <a href="select_criteria.php" class="text-blue-400 hover:underline">← Try a different setup</a>
+        </div>
+    </div>
+</body>
+</html>
+
+import sys
+import json
+import mysql.connector
+from decimal import Decimal
+
+
+criteria = sys.argv[1] if len(sys.argv) > 1 else 'goals'
+formation = sys.argv[2] if len(sys.argv) > 2 else '4-3-3'
+
+
+formations = {
+    "4-3-3": {"GK": 1, "DEF": 4, "MID": 3, "FWD": 3},
+    "4-4-2": {"GK": 1, "DEF": 4, "MID": 4, "FWD": 2},
+    "3-5-2": {"GK": 1, "DEF": 3, "MID": 5, "FWD": 2},
+    "4-2-3-1": {"GK": 1, "DEF": 4, "MID": 5, "FWD": 1},
+}
+
+
+try:
+    db = mysql.connector.connect(
+        host="localhost",
+        user="root",
+        password="",  
+        database="players"  
+    )
+    cursor = db.cursor(dictionary=True)
+except mysql.connector.Error as err:
+    print(f"Error: {err}")
+    sys.exit(1)
+
+
+criteria = criteria.replace('%', '`%`') 
+
+positions = formations.get(formation, formations["4-3-3"])
+squad = []
+
+
+for pos, count in positions.items():
+  
+    query = f"SELECT * FROM `2022_2023stats2_in_` WHERE Pos = %s ORDER BY `{criteria}` DESC LIMIT %s"
+
+ 
+    print(f"Query for {pos}: {query}")
+
+    try:
+        cursor.execute(query, (pos, count))
+        players = cursor.fetchall()
+
+        if players:
+            squad.extend(players)
+        else:
+            print(f"No players found for position: {pos}")
+    except mysql.connector.Error as err:
+        print(f"Error executing query for {pos}: {err}")
+
+
+def convert_decimals(obj):
+    if isinstance(obj, list):
+        return [convert_decimals(item) for item in obj]
+    elif isinstance(obj, dict):
+        return {key: convert_decimals(value) for key, value in obj.items()}
+    elif isinstance(obj, Decimal):
+        return float(obj)
+    return obj
+
+
+squad = convert_decimals(squad)
+
+
+print(json.dumps(squad))
+
+
+cursor.close()
+db.close()
+
+<?php
+
+$api_url = 'http://localhost:5000/get_squad';
+
+
+$stat = isset($_GET['stat']) ? $_GET['stat'] : 'Goals';
+$formation = isset($_GET['formation']) ? $_GET['formation'] : '433';
+
+
+$url = $api_url . "?stat=" . urlencode($stat);
+
+
+$ch = curl_init();
+
+
+curl_setopt($ch, CURLOPT_URL, $url);
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+
+
+$response = curl_exec($ch);
+
+
+if (curl_errno($ch)) {
+    echo 'cURL Error: ' . curl_error($ch);
+    exit;
+}
+
+
+curl_close($ch);
+
+
+$players = json_decode($response, true);
+
+
+if ($players && count($players) > 0) {
+    
+    $forwards = [];
+    $midfielders = [];
+    $defenders = [];
+    $goalkeepers = [];
+
+    foreach ($players as $player) {
+        if ($player['Pos'] == 'FWD') {
+            $forwards[] = $player;
+        } elseif ($player['Pos'] == 'MID') {
+            $midfielders[] = $player;
+        } elseif ($player['Pos'] == 'DEF') {
+            $defenders[] = $player;
+        } elseif ($player['Pos'] == 'GK') {
+            $goalkeepers[] = $player;
+        }
+    }
+
+    
+    $formation_players = [];
+
+    
+    $formation_players['GK'] = $goalkeepers[0];
+
+    
+    $formation_players['DEF'] = array_slice($defenders, 0, 4);
+
+    
+    $formation_players['MID'] = array_slice($midfielders, 0, 3);
+
+    
+    $formation_players['FWD'] = array_slice($forwards, 0, 3);
+
+   
+    echo "<h1>Starting Eleven - $formation Formation</h1>";
+    echo "<div style='text-align: center;'>";
+
+    
+    echo "<div style='display: flex; justify-content: center;'>"; 
+    echo "<div style='width: 60px; height: 60px; border: 1px solid black; display: flex; align-items: center; justify-content: center;'>";
+    echo $formation_players['GK']['Player'];
+    echo "</div>";
+    echo "</div>";
+
+    echo "<div style='display: flex; justify-content: center;'>"; 
+    foreach ($formation_players['DEF'] as $defender) {
+        echo "<div style='width: 60px; height: 60px; border: 1px solid black; display: flex; align-items: center; justify-content: center;'>";
+        echo $defender['Player'];
+        echo "</div>";
+    }
+    echo "</div>";
+
+    echo "<div style='display: flex; justify-content: center;'>"; 
+    foreach ($formation_players['MID'] as $mid) {
+        echo "<div style='width: 60px; height: 60px; border: 1px solid black; display: flex; align-items: center; justify-content: center;'>";
+        echo $mid['Player'];
+        echo "</div>";
+    }
+    echo "</div>";
+
+    echo "<div style='display: flex; justify-content: center;'>"; 
+    foreach ($formation_players['FWD'] as $fwd) {
+        echo "<div style='width: 60px; height: 60px; border: 1px solid black; display: flex; align-items: center; justify-content: center;'>";
+        echo $fwd['Player'];
+        echo "</div>";
+    }
+    echo "</div>";
+
+    echo "</div>";
+} else {
+    echo "<p>No players found with the selected criteria.</p>";
+}
+?>
+
+from flask import Flask, jsonify, request
+import mysql.connector
+
+app = Flask(__name__)
+
+
+def get_db_connection():
+    connection = mysql.connector.connect(
+        host="localhost",      
+        user="root",           
+        password="",           
+        database="players"     
+    )
+    return connection
+
+
+@app.route('/get_squad', methods=['GET'])
+def get_squad():
+   
+    stat = request.args.get('stat', default='Goals', type=str)  
+    limit = request.args.get('limit', default=11, type=int)     
+
+   
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+   
+    query = f"SELECT Player, {stat} FROM 2022_2023stats2_in_ ORDER BY {stat} DESC LIMIT %s"
+    cursor.execute(query, (limit,))
+
+    players = cursor.fetchall()
+
+  
+    cursor.close()
+    conn.close()
+
+   
+    return jsonify(players)
+
+if __name__ == '__main__':
+    app.run(debug=True)
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Select Criteria - Football Squad Planner</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-800 text-white min-h-screen flex flex-col items-center justify-center">
+
+    <div class="bg-gray-900 p-8 rounded-xl shadow-lg w-full max-w-lg">
+        <h1 class="text-2xl font-bold text-center mb-6"> Select Your Criteria</h1>
+
+        <form method="POST" action="generate_squad.php" class="space-y-6">
+
+            
+            <div>
+                <label for="stat" class="block text-sm mb-2">Select performance criteria:</label>
+                <select name="stat" id="stat" class="w-full p-3 rounded bg-gray-700 text-white">
+                    <option value="Goals">Most Goals</option>
+                    <option value="Assists">Most Assists</option>
+                    <option value="PasTotCmp%">Best Pass Completion</option>
+                </select>
+            </div>
+
+            
+            <div>
+                <label for="formation" class="block text-sm mb-2">Select formation:</label>
+                <select name="formation" id="formation" class="w-full p-3 rounded bg-gray-700 text-white">
+                    <option value="4-3-3">4-3-3</option>
+                    <option value="4-4-2">4-4-2</option>
+                    <option value="3-5-2">3-5-2</option>
+                    <option value="4-2-3-1">4-2-3-1</option>
+                </select>
+            </div>
+
+            
+            <div class="text-center">
+                <button type="submit" class="bg-blue-600 hover:bg-blue-700 py-3 px-6 rounded-xl font-semibold transition">
+                    Generate Starting 11
+                </button>
+            </div>
+        </form>
+
+    </div>
+
+    <a href="index.php" class="mt-6 text-sm text-blue-400 hover:underline">← Back to Home</a>
+
+</body>
+</html>
+
+
+<?php
+if (!isset($_POST['stat']) || !isset($_POST['formation'])) {
+    die("Formation or Stat not selected");
+}
+
+$formation = $_POST['formation'];
+$stat = $_POST['stat'];
+
+
+$servername = "localhost";
+$username = "root"; 
+$password = "";      
+$dbname = "players";  
+
+
+$mysqli = new mysqli($servername, $username, $password, $dbname);
+
+
+if ($mysqli->connect_error) {
+    die("Connection failed: " . $mysqli->connect_error);
+}
+
+
+echo "Formation: $formation<br>";
+echo "Stat: $stat<br>";
+
+
+$valid_stats = [
+    'Goals' => 'Goals',
+    'Shots' => 'Shots',
+    'SoT' => 'SoT',
+    'SoT%' => 'SoT%',
+    'G/Sh' => 'G/Sh',
+    'ShoFK' => 'ShoFK',
+    'ShoPK' => 'ShoPK',
+    'PKatt' => 'PKatt',
+    'PasTotAtt' => 'PasTotAtt',
+    'PasTotCmp%' => 'PasTotCmp%',
+    'PasShoAtt' => 'PasShoAtt',
+    'PasShoCmp%' => 'PasShoCmp%',
+    'PasMedAtt' => 'PasMedAtt',
+    'PasMedCmp%' => 'PasMedCmp%',
+    'PasLonAtt' => 'PasLonAtt',
+    'PasLonCmp%' => 'PasLonCmp%',
+    'Assists' => 'Assists',
+    'PPA' => 'PPA',
+    'CrsPA' => 'CrsPA',
+    'PasProg' => 'PasProg',
+    'PasAtt' => 'PasAtt',
+    'PasCrs' => 'PasCrs',
+    'TI' => 'TI',
+    'CK' => 'CK',
+    'PasCmp' => 'PasCmp',
+    'SCA' => 'SCA',
+    'GCA' => 'GCA',
+    'Tkl' => 'Tkl',
+    'TklWon' => 'TklWon',
+    'TklDri%' => 'TklDri%',
+    'TklDriPast' => 'TklDriPast',
+    'BlkSh' => 'BlkSh',
+    'Int' => 'Int',
+    'Clr' => 'Clr',
+    'Touches' => 'Touches',
+    'ToAtt' => 'ToAtt',
+    'ToSuc' => 'ToSuc',
+    'ToSuc%' => 'ToSuc%',
+    'ToTkl' => 'ToTkl',
+    'Carries' => 'Carries',
+    'CarProg' => 'CarProg',
+    'Car3rd' => 'Car3rd',
+    'Rec' => 'Rec',
+    'CrdY' => 'CrdY',
+    'CrdR' => 'CrdR',
+    'Fls' => 'Fls',
+    'Fld' => 'Fld',
+    'Off' => 'Off',
+    'Crs' => 'Crs',
+    'TklW' => 'TklW',
+    'PKwon' => 'PKwon',
+    'PKcon' => 'PKcon',
+    'Recov' => 'Recov',
+    'AerWon' => 'AerWon',
+    'AerLost' => 'AerLost',
+    'AerWon%' => 'AerWon%'
+];
+
+
+if (!array_key_exists($stat, $valid_stats)) {
+    die("Invalid stat selected");
+}
+
+$stat_column = $valid_stats[$stat];
+
+
+$sql = "SELECT Squad, Pos, `$stat_column` FROM 2022_2023stats2_in_ WHERE `$stat_column` IS NOT NULL";
+$result = $mysqli->query($sql);
+
+if ($result === false) {
+    die("Query failed: " . $mysqli->error);
+}
+
+$players = [];
+if ($result->num_rows > 0) {
+    
+    while ($row = $result->fetch_assoc()) {
+        $players[] = $row;
+    }
+} else {
+    echo "No players found with the selected criteria.";
+}
+
+
+$mysqli->close();
+
+
+$temp_file = tempnam(sys_get_temp_dir(), 'players_');
+file_put_contents($temp_file, json_encode($players));
+
+
+$command = escapeshellcmd("python3 optimize_squad.py '$temp_file' '$formation' '$stat'");
+$output = shell_exec($command);
+
+
+echo "<h1>Optimized Squad (Formation: $formation, Optimized By: $stat)</h1>";
+echo "<pre>$output</pre>";
+
+
+unlink($temp_file);
+
+<?php
+
+if (!isset($_POST['stat']) || !isset($_POST['formation'])) {
+    die("Formation or Stat not selected");
+}
+
+$formation = $_POST['formation'];
+$stat = $_POST['stat'];
+
+$servername = "localhost";
+$username = "root";  
+$password = "";      
+$dbname = "players";  
+
+
+$mysqli = new mysqli($servername, $username, $password, $dbname);
+
+
+if ($mysqli->connect_error) {
+    die("Connection failed: " . $mysqli->connect_error);
+}
+
+
+$sql = "SELECT Squad, Pos, `$stat` FROM 2022_2023stats2_in_ WHERE `$stat` IS NOT NULL";
+$result = $mysqli->query($sql);
+
+if ($result === false) {
+    die("Query failed: " . $mysqli->error);
+}
+
+$players = [];
+if ($result->num_rows > 0) {
+    
+    while ($row = $result->fetch_assoc()) {
+        $players[] = $row;
+    }
+} else {
+    echo "No players found with the selected criteria.";
+}
+
+
+$mysqli->close();
+
+
+$temp_file = tempnam(sys_get_temp_dir(), 'players_');
+file_put_contents($temp_file, json_encode($players));
+
+
+$command = escapeshellcmd("python3 optimise_squad.py '$temp_file' '$formation' '$stat'");
+$output = shell_exec($command);
+
+
+echo "<pre>Raw Output: $output</pre>"; 
+
+
+$optimised_squad = json_decode($output, true);
+
+
+if ($optimised_squad === null) {
+    die("Failed to decode JSON: " . json_last_error_msg());
+}
+
+
+echo "<h1>Optimised Squad (Formation: $formation, Optimized By: $stat)</h1>";
+echo "<pre>$output</pre>";
+
+
+echo "<div class='formation-layout'>";
+
+switch ($formation) {
+    case "4-3-3":
+        echo "<div class='goalkeeper'>" . $optimised_squad['GK'][0]['Squad'] . " - " . $optimised_squad['GK'][0][$stat] . "</div>";
+        echo "<div class='defenders'>";
+        foreach ($optimised_squad['DEF'] as $defender) {
+            echo "<div class='player'>" . $defender['Squad'] . " - " . $defender[$stat] . "</div>";
+        }
+        echo "</div>";
+        echo "<div class='midfielders'>";
+        foreach ($optimised_squad['MID'] as $midfielder) {
+            echo "<div class='player'>" . $midfielder['Squad'] . " - " . $midfielder[$stat] . "</div>";
+        }
+        echo "</div>";
+        echo "<div class='forwards'>";
+        foreach ($optimised_squad['FWD'] as $forward) {
+            echo "<div class='player'>" . $forward['Squad'] . " - " . $forward[$stat] . "</div>";
+        }
+        echo "</div>";
+        break;
+
+    case "4-4-2":
+        
+        break;
+
+    case "3-5-2":
+        
+        break;
+
+    case "4-2-3-1":
+        
+        break;
+
+    default:
+        echo "Unknown formation";
+        break;
+}
+
+echo "</div>";  
+
+
+unlink($temp_file);
+
+?>
+
+<style>
+    .formation-layout {
+        display: grid;
+        grid-template-rows: 1fr 1fr 1fr 1fr;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 10px;
+        text-align: center;
+        margin-top: 20px;
+    }
+    .goalkeeper {
+        grid-column: 3;
+        font-weight: bold;
+    }
+    .defenders, .midfielders, .forwards {
+        display: flex;
+        justify-content: space-evenly;
+    }
+    .player {
+        padding: 10px;
+        background-color: #444;
+        border-radius: 5px;
+    }
+</style>
+
+import mysql.connector
+import pandas as pd
+from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+
+db_connection = mysql.connector.connect(
+    host="localhost",
+    user="root",
+    password="",
+    database="players"
+)
+
+
+query = """
+    SELECT 
+        Player,
+        Nation,
+        Comp,
+        Squad, 
+        Pos, 
+        Goals, 
+        Assists, 
+        Shots, 
+        `SoT`, 
+        `SoT%`, 
+        `G/Sh`, 
+        `ShoFK`, 
+        `ShoPK`, 
+        `PKatt`, 
+        `PasTotAtt`, 
+        `PasTotCmp%`, 
+        `PasShoAtt`, 
+        `PasShoCmp%`, 
+        `PasMedAtt`, 
+        `PasMedCmp%`, 
+        `PasLonAtt`, 
+        `PasLonCmp%`, 
+        PPA, 
+        `CrsPA`, 
+        `PasProg`, 
+        `PasAtt`, 
+        `PasCrs`, 
+        TI, 
+        CK, 
+        `PasCmp`, 
+        SCA, 
+        GCA, 
+        Tkl, 
+        TklWon, 
+        `TklDri%`, 
+        `TklDriPast`, 
+        BlkSh, 
+        `Int`,   
+        `Clr`,   
+        Touches, 
+        ToAtt, 
+        ToSuc, 
+        `ToSuc%`, 
+        ToTkl, 
+        Carries, 
+        CarProg, 
+        Car3rd, 
+        Rec, 
+        CrdY, 
+        CrdR, 
+        Fls, 
+        Fld, 
+        Off, 
+        Crs, 
+        TklW, 
+        `PKwon`, 
+        `PKcon`, 
+        Recov, 
+        `AerWon`, 
+        `AerLost`, 
+        `AerWon%`
+    FROM 2022_2023stats2_in_ 
+    WHERE Goals IS NOT NULL
+"""
+
+
+player_data = pd.read_sql(query, db_connection)
+
+
+percentage_columns = ['SoT%', 'G/Sh', 'PasTotCmp%', 'PasShoCmp%', 'PasMedCmp%', 'PasLonCmp%', 'ToSuc%', 'TklDri%', 'AerWon%']
+for col in percentage_columns:
+    player_data[col] = player_data[col] / 100
+
+
+target = 'Goals'
+features = [
+    'Assists', 'Shots', 'SoT', 'G/Sh', 'ShoFK', 'ShoPK', 'PKatt', 
+    'PasTotAtt', 'PasTotCmp%', 'PasShoAtt', 'PasShoCmp%', 'PasMedAtt', 
+    'PasMedCmp%', 'PasLonAtt', 'PasLonCmp%', 'PPA', 'CrsPA', 'PasProg', 
+    'PasAtt', 'PasCrs', 'TI', 'CK', 'PasCmp', 'SCA', 'GCA', 'Tkl', 
+    'TklWon', 'TklDri%', 'TklDriPast', 'BlkSh', 'Int', 'Clr', 'Touches', 
+    'ToAtt', 'ToSuc', 'ToSuc%', 'ToTkl', 'Carries', 'CarProg', 'Car3rd', 
+    'Rec', 'CrdY', 'CrdR', 'Fls', 'Fld', 'Off', 'Crs', 'TklW', 'PKwon', 
+    'PKcon', 'Recov', 'AerWon', 'AerLost'
+]
+
+X = player_data[features]
+y = player_data[target]
+
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+
+model = GradientBoostingRegressor()
+model.fit(X_train, y_train)
+
+
+y_pred = model.predict(X_test)
+
+
+feature_importance = model.feature_importances_
+feature_names = X.columns
+
+plt.figure(figsize=(10, 6))
+sns.barplot(x=feature_importance, y=feature_names)
+plt.title('Feature Importance for Goals Prediction')
+plt.xlabel('Feature Importance')
+plt.ylabel('Features')
+plt.tight_layout()
+plt.show()
+
+
+predicted_goals = pd.DataFrame({
+    'Player': player_data['Player'],
+    'Predicted Goals': model.predict(X)
+})
+predicted_goals_sorted = predicted_goals.sort_values(by='Predicted Goals', ascending=False)
+
+
+top_11_players = predicted_goals_sorted.head(11)
+
+
+print("Optimised Starting Eleven based on Goals:")
+print(top_11_players)
+
+starting_eleven = top_11_players['Player'].tolist()
+formation = '4-3-3'
+
+print(f"Formation: {formation}")
+print(f"Starting Eleven: {starting_eleven}")
+
+import mysql.connector
+import pandas as pd
+from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+
+db_connection = mysql.connector.connect(
+    host="localhost",
+    user="root",
+    password="",
+    database="players"
+)
+
+
+query = """
+    SELECT 
+        Player,
+        Nation,
+        Comp,
+        Squad, 
+        Pos, 
+        Goals, 
+        Assists, 
+        Shots, 
+        `SoT`, 
+        `SoT%`, 
+        `G/Sh`, 
+        `ShoFK`, 
+        `ShoPK`, 
+        `PKatt`, 
+        `PasTotAtt`, 
+        `PasTotCmp%`, 
+        `PasShoAtt`, 
+        `PasShoCmp%`, 
+        `PasMedAtt`, 
+        `PasMedCmp%`, 
+        `PasLonAtt`, 
+        `PasLonCmp%`, 
+        PPA, 
+        `CrsPA`, 
+        `PasProg`, 
+        `PasAtt`, 
+        `PasCrs`, 
+        TI, 
+        CK, 
+        `PasCmp`, 
+        SCA, 
+        GCA, 
+        Tkl, 
+        TklWon, 
+        `TklDri%`, 
+        `TklDriPast`, 
+        BlkSh, 
+        `Int`, 
+        `Clr`, 
+        Touches, 
+        ToAtt, 
+        ToSuc, 
+        `ToSuc%`, 
+        ToTkl, 
+        Carries, 
+        CarProg, 
+        Car3rd, 
+        Rec, 
+        CrdY, 
+        CrdR, 
+        Fls, 
+        Fld, 
+        Off, 
+        Crs, 
+        TklW, 
+        `PKwon`, 
+        `PKcon`, 
+        Recov, 
+        `AerWon`, 
+        `AerLost`, 
+        `AerWon%`
+    FROM 2022_2023stats2_in_
+    WHERE Goals IS NOT NULL
+"""
+
+
+player_data = pd.read_sql(query, db_connection)
+
+
+percentage_columns = ['SoT%', 'G/Sh', 'PasTotCmp%', 'PasShoCmp%', 'PasMedCmp%', 'PasLonCmp%', 'ToSuc%', 'TklDri%', 'AerWon%']
+for col in percentage_columns:
+    player_data[col] = player_data[col] / 100
+
+
+target = 'Goals'
+features = [col for col in player_data.columns if col not in ['Player', 'Nation', 'Comp', 'Squad', 'Pos', 'Goals']]
+
+
+X = player_data[features]
+y = player_data[target]
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+model = GradientBoostingRegressor()
+model.fit(X_train, y_train)
+
+
+plt.figure(figsize=(10, 6))
+sns.barplot(x=model.feature_importances_, y=X.columns)
+plt.title('Feature Importance for Goals Prediction')
+plt.xlabel('Importance')
+plt.ylabel('Feature')
+plt.tight_layout()
+plt.show()
+
+
+player_data['Predicted Goals'] = model.predict(X)
+
+
+def parse_formation(formation_str):
+    parts = list(map(int, formation_str.split('-')))
+    return {'GK': 1, 'DEF': parts[0], 'MID': parts[1], 'FWD': parts[2]}
+
+
+def select_starting_eleven(data, formation_str):
+    formation = parse_formation(formation_str)
+    starting_eleven = []
+    for pos, count in formation.items():
+        top_players = data[data['Pos'] == pos].nlargest(count, 'Predicted Goals')
+        starting_eleven.extend(top_players[['Player', 'Pos', 'Predicted Goals']].to_dict('records'))
+    return starting_eleven
+
+
+formation_str = '4-3-3'
+starting_eleven = select_starting_eleven(player_data, formation_str)
+
+
+print("\nOptimised Starting Eleven based on Goals:")
+for player in starting_eleven:
+    print(f"{player['Player']} ({player['Pos']}) - Predicted Goals: {player['Predicted Goals']:.2f}")
+
+print(f"\nFormation: {formation_str}")
+
+import mysql.connector
+import pandas as pd
+from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+
+db_connection = mysql.connector.connect(
+    host="localhost",
+    user="root",
+    password="",
+    database="players"
+)
+
+
+formation_input = input("Enter formation (e.g., 4-3-3): ")
+target_metric = input("Enter performance metric to optimize (e.g., Goals, PasTotCmp%): ")
+
+
+def parse_formation(formation_str):
+    parts = list(map(int, formation_str.split('-')))
+    return {
+        'GK': 1,
+        'DEF': parts[0],
+        'MID': parts[1],
+        'FWD': parts[2]
+    }
+
+formation_counts = parse_formation(formation_input)
+
+
+query = """
+    SELECT 
+        Player,
+        Nation,
+        Comp,
+        Squad, 
+        Pos, 
+        Goals, 
+        Assists, 
+        Shots, 
+        `SoT`, 
+        `SoT%`, 
+        `G/Sh`, 
+        `ShoFK`, 
+        `ShoPK`, 
+        `PKatt`, 
+        `PasTotAtt`, 
+        `PasTotCmp%`, 
+        `PasShoAtt`, 
+        `PasShoCmp%`, 
+        `PasMedAtt`, 
+        `PasMedCmp%`, 
+        `PasLonAtt`, 
+        `PasLonCmp%`, 
+        PPA, 
+        `CrsPA`, 
+        `PasProg`, 
+        `PasAtt`, 
+        `PasCrs`, 
+        TI, 
+        CK, 
+        `PasCmp`, 
+        SCA, 
+        GCA, 
+        Tkl, 
+        TklWon, 
+        `TklDri%`, 
+        `TklDriPast`, 
+        BlkSh, 
+        `Int`,   
+        `Clr`,   
+        Touches, 
+        ToAtt, 
+        ToSuc, 
+        `ToSuc%`, 
+        ToTkl, 
+        Carries, 
+        CarProg, 
+        Car3rd, 
+        Rec, 
+        CrdY, 
+        CrdR, 
+        Fls, 
+        Fld, 
+        Off, 
+        Crs, 
+        TklW, 
+        `PKwon`, 
+        `PKcon`, 
+        Recov, 
+        `AerWon`, 
+        `AerLost`, 
+        `AerWon%`
+    FROM 2022_2023stats2_in_
+    WHERE `{}` IS NOT NULL
+""".format(target_metric)
+
+
+player_data = pd.read_sql(query, db_connection)
+
+
+percent_columns = ['SoT%', 'G/Sh', 'PasTotCmp%', 'PasShoCmp%', 'PasMedCmp%', 'PasLonCmp%', 'ToSuc%', 'TklDri%', 'AerWon%']
+for col in percent_columns:
+    if col in player_data.columns:
+        player_data[col] = player_data[col] / 100
+
+
+features = player_data.select_dtypes(include='number').drop(columns=[target_metric]).columns.tolist()
+X = player_data[features]
+y = player_data[target_metric]
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+
+model = GradientBoostingRegressor()
+model.fit(X_train, y_train)
+
+
+plt.figure(figsize=(10, 6))
+sns.barplot(x=model.feature_importances_, y=X.columns)
+plt.title(f'Feature Importance for Predicting {target_metric}')
+plt.xlabel('Importance')
+plt.ylabel('Features')
+plt.tight_layout()
+plt.show()
+
+
+player_data['Predicted Metric'] = model.predict(X)
+
+starting_eleven = []
+
+for pos, count in formation_counts.items():
+    players = player_data[player_data['Pos'] == pos].sort_values(by='Predicted Metric', ascending=False).head(count)
+    starting_eleven.append(players)
+
+final_squad = pd.concat(starting_eleven)
+
+
+print(f"\nOptimised Starting Eleven based on {target_metric}:")
+for _, row in final_squad.iterrows():
+    print(f"{row['Player']} ({row['Pos']}) - Predicted {target_metric}: {round(row['Predicted Metric'], 2)}")
+
+print(f"\nFormation: {formation_input}")
+print("Starting Eleven:", final_squad['Player'].tolist())
+
+<?php
+
+$formation = $_POST['formation']; 
+$stat = $_POST['stat'];           
+
+
+$command = "python3 C:\\xampp\\htdocs\\playerssquadtool\\machine.py $formation $stat";
+
+
+$output = shell_exec($command);
+
+
+echo "<pre>$output</pre>";
+
+
+$decoded_output = json_decode($output, true);
+
+
+if ($decoded_output === null) {
+    echo "Error: Python script did not return valid JSON output. JSON Error: " . json_last_error_msg();
+    echo "<pre>$output</pre>";  
+} else {
+    
+    if (isset($decoded_output['starting_eleven']) && is_array($decoded_output['starting_eleven'])) {
+       
+        echo "<h2>Optimised Starting Eleven for Formation: {$decoded_output['formation']}</h2>";
+        echo "<p>Based on performance metric: {$stat}</p>";
+        echo "<ul>";
+        foreach ($decoded_output['starting_eleven'] as $player) {
+            echo "<li>{$player['Player']} ({$player['Pos']}) - Predicted {$stat}: " . round($player['Predicted Metric'], 2) . "</li>";
+        }
+        echo "</ul>";
+    } else {
+        echo "<p>Error: No valid starting eleven found in the Python script output.</p>";
+    }
+}
+?>
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Generated Squad - Football Squad Planner</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-800 text-white min-h-screen flex flex-col items-center justify-center">
+
+    
+    <header class="text-center mb-8">
+        <h1 class="text-4xl font-bold mb-2">Optimised Starting XI for Formation: <?= htmlspecialchars($formation) ?></h1>
+        <p class="text-gray-400">Based on performance metric: <?= htmlspecialchars($stat) ?></p>
+    </header>
+
+    
+    <div class="w-full max-w-3xl mb-8">
+        <svg id="pitch" class="w-full h-[400px]" viewBox="0 0 100 60">
+            
+            <rect x="0" y="0" width="100" height="60" fill="green" stroke="white" stroke-width="2" />
+            
+            <line x1="50" y1="0" x2="50" y2="60" stroke="white" stroke-width="2" />
+            
+            <circle cx="50" cy="30" r="5" fill="transparent" stroke="white" stroke-width="2" />
+           
+            <rect x="5" y="10" width="20" height="40" fill="transparent" stroke="white" stroke-width="2" />
+            <rect x="75" y="10" width="20" height="40" fill="transparent" stroke="white" stroke-width="2" />
+            
+        </svg>
+    </div>
+
+    
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <?php foreach ($squad['players'] as $player): ?>
+            <div class="bg-gray-800 p-4 rounded-lg shadow-lg">
+                <div class="text-center">
+                    <h2 class="text-xl font-semibold text-white"><?= htmlspecialchars($player['name']) ?></h2>
+                    <p class="text-gray-400"><?= htmlspecialchars($player['position']) ?></p>
+                    <p class="text-green-500">Predicted <?= htmlspecialchars($stat) ?>: <?= number_format($player['predicted_value'], 2) ?></p>
+                </div>
+            </div>
+        <?php endforeach; ?>
+    </div>
+
+    
+    <div class="mb-4">
+        <a href="select_criteria.php" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl transition">Back to Criteria</a>
+    </div>
+
+    
+    <script>
+        const players = <?php echo json_encode($squad['players']); ?>;
+        
+        
+        function renderPlayers(formation, players) {
+            const pitch = document.getElementById("pitch");
+
+            
+            const playerMarkers = pitch.querySelectorAll('.player');
+            playerMarkers.forEach(marker => marker.remove());
+
+            
+            const positions = {
+                '4-3-3': {
+                    'GK': { x: 50, y: 5 },
+                    'DEF': [
+                        { x: 25, y: 45 }, { x: 35, y: 45 }, { x: 65, y: 45 }, { x: 75, y: 45 }
+                    ],
+                    'MID': [
+                        { x: 30, y: 30 }, { x: 50, y: 30 }, { x: 70, y: 30 }
+                    ],
+                    'FWD': [
+                        { x: 40, y: 10 }, { x: 60, y: 10 }, { x: 50, y: 10 }
+                    ]
+                },
+                '4-4-2': {
+                    'GK': { x: 50, y: 5 },
+                    'DEF': [
+                        { x: 25, y: 45 }, { x: 35, y: 45 }, { x: 65, y: 45 }, { x: 75, y: 45 }
+                    ],
+                    'MID': [
+                        { x: 30, y: 30 }, { x: 50, y: 30 }, { x: 70, y: 30 }, { x: 50, y: 20 }
+                    ],
+                    'FWD': [
+                        { x: 40, y: 10 }, { x: 60, y: 10 }
+                    ]
+                },
+                '3-5-2': {
+                    'GK': { x: 50, y: 5 },
+                    'DEF': [
+                        { x: 35, y: 45 }, { x: 50, y: 45 }, { x: 65, y: 45 }
+                    ],
+                    'MID': [
+                        { x: 25, y: 30 }, { x: 40, y: 30 }, { x: 50, y: 30 }, { x: 60, y: 30 }, { x: 75, y: 30 }
+                    ],
+                    'FWD': [
+                        { x: 40, y: 10 }, { x: 60, y: 10 }
+                    ]
+                },
+            };
+
+            
+            players.forEach((player, index) => {
+                const pos = positions[formation][player.position][index];
+
+                const playerElement = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                playerElement.setAttribute("class", "player");
+                playerElement.setAttribute("cx", pos.x);
+                playerElement.setAttribute("cy", pos.y);
+                playerElement.setAttribute("r", "1.5");
+                playerElement.setAttribute("fill", player.position === "GK" ? "blue" : "yellow");
+
+                pitch.appendChild(playerElement);
+            });
+        }
+
+        
+        renderPlayers('<?= $formation ?>', players);
+    </script>
+</body>
+</html>
+
+import sys
+import mysql.connector
+import pandas as pd
+from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
+import json
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+import seaborn as sns
+
+
+db_connection = mysql.connector.connect(
+    host="localhost",
+    user="root",
+    password="",
+    database="players"
+)
+
+
+if len(sys.argv) < 3:
+    print("Error: Not enough arguments. Please provide both formation and target metric.")
+    sys.exit(1)
+
+formation_input = sys.argv[1]  
+target_metric = sys.argv[2]    
+
+print(f"Formation Input: {formation_input}")
+print(f"Target Metric: {target_metric}")
+
+
+def parse_formation(formation_str):
+    parts = list(map(int, formation_str.split('-')))
+    return {
+        'GK': 1,
+        'DEF': parts[0],
+        'MID': parts[1],
+        'FWD': parts[2]
+    }
+
+formation_counts = parse_formation(formation_input)
+
+
+query = f"""
+    SELECT 
+        Player,
+        Nation,
+        Comp,
+        Squad, 
+        Pos, 
+        Goals, 
+        Assists, 
+        Shots, 
+        `SoT`, 
+        `SoT%`, 
+        `G/Sh`, 
+        `ShoFK`, 
+        `ShoPK`, 
+        `PKatt`, 
+        `PasTotAtt`, 
+        `PasTotCmp%`, 
+        `PasShoAtt`, 
+        `PasShoCmp%`, 
+        `PasMedAtt`, 
+        `PasMedCmp%`, 
+        `PasLonAtt`, 
+        `PasLonCmp%`, 
+        PPA, 
+        `CrsPA`, 
+        `PasProg`, 
+        `PasAtt`, 
+        `PasCrs`, 
+        TI, 
+        CK, 
+        `PasCmp`, 
+        SCA, 
+        GCA, 
+        Tkl, 
+        TklWon, 
+        `TklDri%`, 
+        `TklDriPast`, 
+        BlkSh, 
+        `Int`,   
+        `Clr`,   
+        Touches, 
+        ToAtt, 
+        ToSuc, 
+        `ToSuc%`, 
+        ToTkl, 
+        Carries, 
+        CarProg, 
+        Car3rd, 
+        Rec, 
+        CrdY, 
+        CrdR, 
+        Fls, 
+        Fld, 
+        Off, 
+        Crs, 
+        TklW, 
+        `PKwon`, 
+        `PKcon`, 
+        Recov, 
+        `AerWon`, 
+        `AerLost`, 
+        `AerWon%`
+    FROM 2022_2023stats2_in_
+    WHERE `{target_metric}` IS NOT NULL
+"""
+
+
+try:
+    player_data = pd.read_sql(query, db_connection)
+except Exception as e:
+    print(f"Error fetching data: {e}")
+    sys.exit(1)
+
+
+percent_columns = ['SoT%', 'G/Sh', 'PasTotCmp%', 'PasShoCmp%', 'PasMedCmp%', 'PasLonCmp%', 'ToSuc%', 'TklDri%', 'AerWon%']
+for col in percent_columns:
+    if col in player_data.columns:
+        player_data[col] = player_data[col] / 100
+
+
+features = player_data.select_dtypes(include='number').drop(columns=[target_metric]).columns.tolist()
+X = player_data[features]
+y = player_data[target_metric]
+
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+
+model = GradientBoostingRegressor()
+model.fit(X_train, y_train)
+
+player_data['Predicted Metric'] = model.predict(X)
+
+starting_eleven = []
+
+for pos, count in formation_counts.items():
+    players = player_data[player_data['Pos'] == pos].sort_values(by='Predicted Metric', ascending=False).head(count)
+    starting_eleven.append(players)
+
+final_squad = pd.concat(starting_eleven)
+
+
+output = {
+    "formation": formation_input,
+    "starting_eleven": final_squad[['Player', 'Pos', 'Predicted Metric']].to_dict(orient='records')
+}
+
+import json
+
+final_squad_dict = {
+    "formation": formation_input,
+    "starting_eleven": final_squad[['Player', 'Pos', 'Predicted Metric']].to_dict(orient='records')
+}
+print(json.dumps(final_squad_dict))  
+
+
+import sys
+import mysql.connector
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import json
+
+from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+
+#DB Connection
+db_connection = mysql.connector.connect(
+    host="localhost",
+    user="root",
+    password="",
+    database="players"
+)
+
+#Get CLI Arguments
+if len(sys.argv) < 3:
+    print("Error: Not enough arguments. Please provide both formation and target metric.")
+    sys.exit(1)
+
+formation_input = sys.argv[1]
+target_metric = sys.argv[2]
+
+print(f"Formation Input: {formation_input}")
+print(f"Target Metric: {target_metric}")
+
+#Parse Formation 
+def parse_formation(formation_str):
+    parts = list(map(int, formation_str.split('-')))
+    return {
+        'GK': 1,
+        'DEF': parts[0],
+        'MID': parts[1],
+        'FWD': parts[2]
+    }
+
+formation_counts = parse_formation(formation_input)
+
+#SQL Query 
+query = f"""
+    SELECT 
+        Player, Nation, Comp, Squad, Pos,
+        Goals, Assists, Shots, `SoT`, `SoT%`, `G/Sh`, `ShoFK`, `ShoPK`, `PKatt`,
+        `PasTotAtt`, `PasTotCmp%`, `PasShoAtt`, `PasShoCmp%`, `PasMedAtt`, `PasMedCmp%`, 
+        `PasLonAtt`, `PasLonCmp%`, PPA, `CrsPA`, `PasProg`, `PasAtt`, `PasCrs`, 
+        TI, CK, `PasCmp`, SCA, GCA, Tkl, TklWon, `TklDri%`, `TklDriPast`, 
+        BlkSh, `Int`, `Clr`, Touches, ToAtt, ToSuc, `ToSuc%`, ToTkl, 
+        Carries, CarProg, Car3rd, Rec, CrdY, CrdR, Fls, Fld, Off, 
+        Crs, TklW, `PKwon`, `PKcon`, Recov, `AerWon`, `AerLost`, `AerWon%`
+    FROM 2022_2023stats2_in_
+    WHERE `{target_metric}` IS NOT NULL
+"""
+
+#Load Data
+try:
+    player_data = pd.read_sql(query, db_connection)
+except Exception as e:
+    print(f"Error fetching data: {e}")
+    sys.exit(1)
+
+#Fix Percent Columns
+percent_columns = ['SoT%', 'G/Sh', 'PasTotCmp%', 'PasShoCmp%', 'PasMedCmp%', 'PasLonCmp%', 'ToSuc%', 'TklDri%', 'AerWon%']
+for col in percent_columns:
+    if col in player_data.columns:
+        player_data[col] = player_data[col] / 100
+
+#Feature and Target Setup 
+features = player_data.select_dtypes(include='number').drop(columns=[target_metric]).columns.tolist()
+X = player_data[features]
+y = player_data[target_metric]
+
+#Train and Test Split 
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+#Model
+model = GradientBoostingRegressor()
+model.fit(X_train, y_train)
+
+#Evaluation 
+y_pred = model.predict(X_test)
+print("\n--- Model Evaluation ---")
+print(f"Mean Absolute Error: {mean_absolute_error(y_test, y_pred):.4f}")
+print(f"Mean Squared Error: {mean_squared_error(y_test, y_pred):.4f}")
+print(f"R^2 Score: {r2_score(y_test, y_pred):.4f}")
+
+#Feature Importance
+importances = pd.Series(model.feature_importances_, index=features).sort_values(ascending=False)
+
+#Plot top 10 features
+plt.figure(figsize=(10, 5))
+sns.barplot(x=importances.head(10), y=importances.head(10).index, palette="viridis")
+plt.title(f"Top 10 Feature Importances for Predicting {target_metric}")
+plt.xlabel("Importance Score")
+plt.ylabel("Feature")
+plt.tight_layout()
+plt.savefig(f"feature_importance_{target_metric}.png")
+
+
+#Prediction for Starting 11 
+player_data['Predicted Metric'] = model.predict(X)
+
+starting_eleven = []
+for pos, count in formation_counts.items():
+    players = player_data[player_data['Pos'] == pos].sort_values(by='Predicted Metric', ascending=False).head(count)
+    starting_eleven.append(players)
+
+final_squad = pd.concat(starting_eleven)
+
+#Output JSON 
+final_squad_dict = {
+    "formation": formation_input,
+    "starting_eleven": final_squad[['Player', 'Pos', 'Predicted Metric']].to_dict(orient='records')
+}
+
+print(json.dumps(final_squad_dict))
+
+
+# Prediction for Starting 11 
+player_data['Predicted Metric'] = model.predict(X)
+player_data['Actual Metric'] = player_data[target_metric]  
+
+starting_eleven = []
+for pos, count in formation_counts.items():
+    players = player_data[player_data['Pos'] == pos].sort_values(by='Predicted Metric', ascending=False).head(count)
+    starting_eleven.append(players)
+
+final_squad = pd.concat(starting_eleven)
+
+# Output JSON with both actual and predicted metric
+final_squad_dict = {
+    "formation": formation_input,
+    "starting_eleven": final_squad[['Player', 'Pos', 'Actual Metric', 'Predicted Metric']].to_dict(orient='records')
+}
+
+print(json.dumps(final_squad_dict, indent=2))  
+
+import sys
+import mysql.connector
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import json
+
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+from sklearn.linear_model import LinearRegression
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+from sklearn.svm import SVR
+
+#DB Connection
+db_connection = mysql.connector.connect(
+    host="localhost",
+    user="root",
+    password="",
+    database="players"
+)
+
+#Get CLI Arguments
+if len(sys.argv) < 3:
+    print("Error: Not enough arguments. Please provide both formation and target metric.")
+    sys.exit(1)
+
+formation_input = sys.argv[1]
+target_metric = sys.argv[2]
+
+print(f"Formation Input: {formation_input}")
+print(f"Target Metric: {target_metric}")
+
+#Parse Formation 
+def parse_formation(formation_str):
+    parts = list(map(int, formation_str.split('-')))
+    return {
+        'GK': 1,
+        'DEF': parts[0],
+        'MID': parts[1],
+        'FWD': parts[2]
+    }
+
+formation_counts = parse_formation(formation_input)
+
+#SQL Query 
+query = f"""
+    SELECT 
+        Player, Nation, Comp, Squad, Pos,
+        Goals, Assists, Shots, `SoT`, `SoT%`, `G/Sh`, `ShoFK`, `ShoPK`, `PKatt`,
+        `PasTotAtt`, `PasTotCmp%`, `PasShoAtt`, `PasShoCmp%`, `PasMedAtt`, `PasMedCmp%`, 
+        `PasLonAtt`, `PasLonCmp%`, PPA, `CrsPA`, `PasProg`, `PasAtt`, `PasCrs`, 
+        TI, CK, `PasCmp`, SCA, GCA, Tkl, TklWon, `TklDri%`, `TklDriPast`, 
+        BlkSh, `Int`, `Clr`, Touches, ToAtt, ToSuc, `ToSuc%`, ToTkl, 
+        Carries, CarProg, Car3rd, Rec, CrdY, CrdR, Fls, Fld, Off, 
+        Crs, TklW, `PKwon`, `PKcon`, Recov, `AerWon`, `AerLost`, `AerWon%`
+    FROM 2022_2023stats2_in_
+    WHERE `{target_metric}` IS NOT NULL
+"""
+
+#Load Data
+try:
+    player_data = pd.read_sql(query, db_connection)
+except Exception as e:
+    print(f"Error fetching data: {e}")
+    sys.exit(1)
+
+#Fix Percent Columns
+percent_columns = ['SoT%', 'G/Sh', 'PasTotCmp%', 'PasShoCmp%', 'PasMedCmp%', 'PasLonCmp%', 'ToSuc%', 'TklDri%', 'AerWon%']
+for col in percent_columns:
+    if col in player_data.columns:
+        player_data[col] = player_data[col] / 100
+
+#Feature and Target Setup 
+features = player_data.select_dtypes(include='number').drop(columns=[target_metric]).columns.tolist()
+X = player_data[features]
+y = player_data[target_metric]
+
+#Train and Test Split 
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+models = {
+    "Linear Regression": LinearRegression(),
+    "Random Forest": RandomForestRegressor(),
+    "Gradient Boosting": GradientBoostingRegressor(),
+    "Support Vector Regressor": SVR()
+}
+
+print("\n--- Model Comparison ---")
+for name, model_instance in models.items():
+    model_instance.fit(X_train, y_train)
+    y_pred_model = model_instance.predict(X_test)
+    mae = mean_absolute_error(y_test, y_pred_model)
+    mse = mean_squared_error(y_test, y_pred_model)
+    r2 = r2_score(y_test, y_pred_model)
+#Model
+model = GradientBoostingRegressor()
+model.fit(X_train, y_train)
+
+#Evaluation 
+y_pred = model.predict(X_test)
+print("\n--- Model Evaluation ---")
+print(f"Mean Absolute Error: {mean_absolute_error(y_test, y_pred):.4f}")
+print(f"Mean Squared Error: {mean_squared_error(y_test, y_pred):.4f}")
+print(f"R^2 Score: {r2_score(y_test, y_pred):.4f}")
+
+#Feature Importance
+importances = pd.Series(model.feature_importances_, index=features).sort_values(ascending=False)
+
+#Plot top 10 features
+plt.figure(figsize=(10, 5))
+sns.barplot(x=importances.head(10), y=importances.head(10).index, color="blue")
+plt.title(f"Top 10 Feature Importances for Predicting {target_metric}")
+plt.xlabel("Importance Score")
+plt.ylabel("Feature")
+plt.tight_layout()
+plt.savefig(f"feature_importance_{target_metric}.png")
+
+# Add 'Actual Metric' to the player data based on the target metric
+player_data['Predicted Metric'] = model.predict(X)
+player_data['Actual Metric'] = y  # Add the actual target metric values (e.g., Goals)
+
+# Calculate the hybrid score as the average of predicted and actual metrics
+player_data['Hybrid Score'] = (player_data['Predicted Metric'] + player_data['Actual Metric']) / 2
+
+# Select the starting eleven based on the hybrid score
+starting_eleven = []
+for pos, count in formation_counts.items():
+    # Sort by the hybrid score (combining actual and predicted performance)
+    players = player_data[player_data['Pos'] == pos].sort_values(by='Hybrid Score', ascending=False).head(count)
+    starting_eleven.append(players)
+
+# Combine all the players into the final squad
+final_squad = pd.concat(starting_eleven)
+
+# Output JSON with both actual and predicted values
+final_squad_dict = {
+    "formation": formation_input,
+    "starting_eleven": final_squad[['Player', 'Pos', 'Actual Metric', 'Predicted Metric', 'Hybrid Score']].to_dict(orient='records')
+}
+
+# Print the JSON output
+print(json.dumps(final_squad_dict, indent=4))
+
